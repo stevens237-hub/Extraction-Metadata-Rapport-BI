@@ -12,6 +12,7 @@ from pathlib import Path
 # Import du parser
 sys.path.insert(0, str(Path(__file__).parent))
 from pages_parser import parser_pages_rapport
+from visuals_parser import parser_visuels_rapport
 
 
 def charger_configuration():
@@ -47,6 +48,34 @@ def verifier_environnement(config):
     
     return erreurs
 
+def verifier_fichiers_sortie_accessibles(dossier_sortie, noms_csv):
+    """
+    Vérifie que les fichiers CSV de sortie peuvent être écrits.
+    Détecte le cas où l'un d'eux est déjà ouvert dans Excel.
+    
+    Returns:
+        liste des erreurs trouvées (vide si tout est OK)
+    """
+    erreurs = []
+    
+    for nom_csv in noms_csv:
+        chemin = dossier_sortie / nom_csv
+        
+        if not chemin.exists():
+            # Le fichier n'existe pas encore, c'est OK
+            continue
+        
+        # On tente d'ouvrir en mode append pour vérifier l'accès en écriture
+        try:
+            with open(chemin, 'a', encoding='utf-8-sig'):
+                pass
+        except PermissionError:
+            erreurs.append(
+                f"Le fichier {nom_csv} est probablement ouvert dans Excel. "
+                f"Fermez-le et relancez."
+            )
+    
+    return erreurs
 
 def lister_rapports(config):
     """Retourne la liste des fichiers .pbix dans le dossier source."""
@@ -128,6 +157,19 @@ def main():
         sys.exit(1)
     print("[OK] Environnement vérifié")
     
+    # Vérification des fichiers de sortie
+    noms_csv = ['ReportPages.csv', 'Visuals.csv']
+    erreurs_fichiers = verifier_fichiers_sortie_accessibles(
+        Path(config['Chemins']['dossier_sortie']),
+        noms_csv
+    )
+    if erreurs_fichiers:
+        print("\n[ERREUR] Fichiers de sortie inaccessibles :")
+        for erreur in erreurs_fichiers:
+            print(f"  - {erreur}")
+        sys.exit(1)
+    print("[OK] Fichiers de sortie accessibles")
+    
     # Listing des rapports à traiter
     rapports = lister_rapports(config)
     if not rapports:
@@ -141,33 +183,43 @@ def main():
     dossier_sortie = Path(config['Chemins']['dossier_sortie'])
     chemin_pbi_tools = Path(config['Chemins']['chemin_pbi_tools'])
     
-    # Collecte des données de toutes les pages
+    # Collecte des données
     toutes_les_pages = []
+    tous_les_visuels = []
     
     for i, rapport in enumerate(rapports, 1):
         print(f"\n[{i}/{len(rapports)}] Traitement : {rapport.name}")
         
-        # Étape 1 : extraction du .pbix avec pbi-tools
+        # Extraction du .pbix avec pbi-tools
         dossier_extrait = extraire_avec_pbi_tools(rapport, dossier_temp, chemin_pbi_tools)
         if dossier_extrait is None:
             print(f"  [SKIP] Rapport ignoré suite à l'erreur d'extraction")
             continue
         
-        # Étape 2 : parsing des pages
+        # Parsing des pages
         pages = parser_pages_rapport(dossier_extrait, rapport.stem)
         print(f"  [OK] {len(pages)} page(s) extraite(s)")
-        
         toutes_les_pages.extend(pages)
+        
+        # Parsing des visuels
+        visuels = parser_visuels_rapport(dossier_extrait, rapport.stem)
+        print(f"  [OK] {len(visuels)} visuel(s) extrait(s)")
+        tous_les_visuels.extend(visuels)
     
-    # Écriture du CSV consolidé
+    # Écriture des CSV consolidés
+    print("\n[INFO] Génération des fichiers CSV...")
+    
     if toutes_les_pages:
         chemin_csv = dossier_sortie / "ReportPages.csv"
         colonnes = ['NomRapport', 'NomPage', 'OrdrePage', 'Largeur', 'Hauteur', 'EstVisible', 'NbVisuels']
         ecrire_csv(toutes_les_pages, chemin_csv, colonnes)
-        print(f"\n[OK] Fichier généré : {chemin_csv}")
-        print(f"     {len(toutes_les_pages)} ligne(s) au total")
-    else:
-        print("\n[INFO] Aucune page à exporter.")
+        print(f"  [OK] ReportPages.csv : {len(toutes_les_pages)} ligne(s)")
+    
+    if tous_les_visuels:
+        chemin_csv = dossier_sortie / "Visuals.csv"
+        colonnes = ['NomRapport', 'NomPage', 'OrdrePage', 'TypeVisuel', 'Titre', 'PositionX', 'PositionY', 'Largeur', 'Hauteur', 'AFiltre']
+        ecrire_csv(tous_les_visuels, chemin_csv, colonnes)
+        print(f"  [OK] Visuals.csv : {len(tous_les_visuels)} ligne(s)")
     
     print("\nTerminé.")
 
