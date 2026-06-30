@@ -13,6 +13,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 from pages_parser import parser_pages_rapport
 from visuals_parser import parser_visuels_rapport
+from fields_parser import parser_champs_rapport
 
 
 def charger_configuration():
@@ -158,7 +159,7 @@ def main():
     print("[OK] Environnement vérifié")
     
     # Vérification des fichiers de sortie
-    noms_csv = ['ReportPages.csv', 'Visuals.csv']
+    noms_csv = ['ReportPages.csv', 'Visuals.csv', 'UsedFields.csv']
     erreurs_fichiers = verifier_fichiers_sortie_accessibles(
         Path(config['Chemins']['dossier_sortie']),
         noms_csv
@@ -186,6 +187,7 @@ def main():
     # Collecte des données
     toutes_les_pages = []
     tous_les_visuels = []
+    tous_les_champs = []
     
     for i, rapport in enumerate(rapports, 1):
         print(f"\n[{i}/{len(rapports)}] Traitement : {rapport.name}")
@@ -205,6 +207,11 @@ def main():
         visuels = parser_visuels_rapport(dossier_extrait, rapport.stem)
         print(f"  [OK] {len(visuels)} visuel(s) extrait(s)")
         tous_les_visuels.extend(visuels)
+        
+        # Parsing des champs utilisés
+        champs = parser_champs_rapport(dossier_extrait, rapport.stem)
+        print(f"  [OK] {len(champs)} usage(s) de champ extrait(s)")
+        tous_les_champs.extend(champs)
     
     # Écriture des CSV consolidés
     print("\n[INFO] Génération des fichiers CSV...")
@@ -220,6 +227,12 @@ def main():
         colonnes = ['NomRapport', 'NomPage', 'OrdrePage', 'TypeVisuel', 'Titre', 'PositionX', 'PositionY', 'Largeur', 'Hauteur', 'AFiltre']
         ecrire_csv(tous_les_visuels, chemin_csv, colonnes)
         print(f"  [OK] Visuals.csv : {len(tous_les_visuels)} ligne(s)")
+        
+    if tous_les_champs:
+        chemin_csv = dossier_sortie / "UsedFields.csv"
+        colonnes = ['NomRapport', 'NomPage', 'TypeVisuel', 'NomTable', 'NomChamp', 'TypeChamp', 'Agregation']
+        ecrire_csv(tous_les_champs, chemin_csv, colonnes)
+        print(f"  [OK] UsedFields.csv : {len(tous_les_champs)} ligne(s)")
     
     print("\nTerminé.")
 
