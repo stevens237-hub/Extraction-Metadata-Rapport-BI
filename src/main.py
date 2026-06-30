@@ -15,6 +15,7 @@ from pages_parser import parser_pages_rapport
 from visuals_parser import parser_visuels_rapport
 from fields_parser import parser_champs_rapport
 from usedTable_parser import agreger_tables_utilisees
+from model_parser import parser_modele_rapport
 
 
 def charger_configuration():
@@ -189,6 +190,7 @@ def main():
     toutes_les_pages = []
     tous_les_visuels = []
     tous_les_champs = []
+    tous_les_champs_modele = []
     
     for i, rapport in enumerate(rapports, 1):
         print(f"\n[{i}/{len(rapports)}] Traitement : {rapport.name}")
@@ -213,6 +215,11 @@ def main():
         champs = parser_champs_rapport(dossier_extrait, rapport.stem)
         print(f"  [OK] {len(champs)} usage(s) de champ extrait(s)")
         tous_les_champs.extend(champs)
+        
+        # Parsing du modèle (inventaire complet)
+        champs_modele = parser_modele_rapport(dossier_extrait, rapport.stem)
+        print(f"  [OK] {len(champs_modele)} champ(s) trouvé(s) dans le modèle")
+        tous_les_champs_modele.extend(champs_modele)
     
     # Écriture des CSV consolidés
     print("\n[INFO] Génération des fichiers CSV...")
@@ -244,6 +251,7 @@ def main():
             colonnes = ['NomRapport', 'NomTable', 'NbChampsUtilises', 'NbVisuelsUtilisant']
             ecrire_csv(tables_utilisees, chemin_csv, colonnes)
             print(f"  [OK] UsedTables.csv : {len(tables_utilisees)} ligne(s)")
+            
     
     print("\nTerminé.")
 
