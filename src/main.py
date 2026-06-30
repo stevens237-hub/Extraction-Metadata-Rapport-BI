@@ -14,6 +14,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from pages_parser import parser_pages_rapport
 from visuals_parser import parser_visuels_rapport
 from fields_parser import parser_champs_rapport
+from usedTable_parser import agreger_tables_utilisees
 
 
 def charger_configuration():
@@ -159,7 +160,7 @@ def main():
     print("[OK] Environnement vérifié")
     
     # Vérification des fichiers de sortie
-    noms_csv = ['ReportPages.csv', 'Visuals.csv', 'UsedFields.csv']
+    noms_csv = ['ReportPages.csv', 'Visuals.csv', 'UsedFields.csv', 'UsedTables.csv']
     erreurs_fichiers = verifier_fichiers_sortie_accessibles(
         Path(config['Chemins']['dossier_sortie']),
         noms_csv
@@ -233,6 +234,16 @@ def main():
         colonnes = ['NomRapport', 'NomPage', 'TypeVisuel', 'NomTable', 'NomChamp', 'TypeChamp', 'Agregation']
         ecrire_csv(tous_les_champs, chemin_csv, colonnes)
         print(f"  [OK] UsedFields.csv : {len(tous_les_champs)} ligne(s)")
+        
+    # Agrégation des tables utilisées
+    if tous_les_champs:
+        tables_utilisees = agreger_tables_utilisees(tous_les_champs)
+        
+        if tables_utilisees:
+            chemin_csv = dossier_sortie / "UsedTables.csv"
+            colonnes = ['NomRapport', 'NomTable', 'NbChampsUtilises', 'NbVisuelsUtilisant']
+            ecrire_csv(tables_utilisees, chemin_csv, colonnes)
+            print(f"  [OK] UsedTables.csv : {len(tables_utilisees)} ligne(s)")
     
     print("\nTerminé.")
 
