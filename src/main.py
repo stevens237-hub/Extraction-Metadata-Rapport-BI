@@ -16,6 +16,7 @@ from visuals_parser import parser_visuels_rapport
 from fields_parser import parser_champs_rapport
 from usedTable_parser import agreger_tables_utilisees
 from model_parser import parser_modele_rapport
+from unusedField_parse import calculer_champs_non_utilises, calculer_tables_non_utilisees
 
 
 def charger_configuration():
@@ -161,7 +162,7 @@ def main():
     print("[OK] Environnement vérifié")
     
     # Vérification des fichiers de sortie
-    noms_csv = ['ReportPages.csv', 'Visuals.csv', 'UsedFields.csv', 'UsedTables.csv']
+    noms_csv = ['ReportPages.csv', 'Visuals.csv', 'UsedFields.csv', 'UsedTables.csv', 'UnusedFields.csv', 'UnusedTables.csv']
     erreurs_fichiers = verifier_fichiers_sortie_accessibles(
         Path(config['Chemins']['dossier_sortie']),
         noms_csv
@@ -251,6 +252,31 @@ def main():
             colonnes = ['NomRapport', 'NomTable', 'NbChampsUtilises', 'NbVisuelsUtilisant']
             ecrire_csv(tables_utilisees, chemin_csv, colonnes)
             print(f"  [OK] UsedTables.csv : {len(tables_utilisees)} ligne(s)")
+            
+    # Calcul et écriture des champs non utilisés
+    if tous_les_champs_modele:
+        champs_non_utilises = calculer_champs_non_utilises(
+            tous_les_champs_modele, 
+            tous_les_champs
+        )
+        
+        if champs_non_utilises:
+            chemin_csv = dossier_sortie / "UnusedFields.csv"
+            colonnes = ['NomRapport', 'NomTable', 'NomChamp', 'TypeChamp', 'EstMasque']
+            ecrire_csv(champs_non_utilises, chemin_csv, colonnes)
+            print(f"  [OK] UnusedFields.csv : {len(champs_non_utilises)} ligne(s)")
+        
+        # Calcul et écriture des tables non utilisées
+        tables_non_utilisees = calculer_tables_non_utilisees(
+            tous_les_champs_modele,
+            tous_les_champs
+        )
+        
+        if tables_non_utilisees:
+            chemin_csv = dossier_sortie / "UnusedTables.csv"
+            colonnes = ['NomRapport', 'NomTable', 'NbColonnes', 'NbMesures', 'EstMasqueeGlobalement']
+            ecrire_csv(tables_non_utilisees, chemin_csv, colonnes)
+            print(f"  [OK] UnusedTables.csv : {len(tables_non_utilisees)} ligne(s)")
             
     
     print("\nTerminé.")
