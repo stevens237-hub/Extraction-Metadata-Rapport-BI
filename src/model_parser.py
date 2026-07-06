@@ -48,6 +48,7 @@ def extraire_nom_table(lignes):
             # Supprime les apostrophes si le nom est entre apostrophes
             if nom.startswith("'") and nom.endswith("'"):
                 nom = nom[1:-1]
+                nom = nom.replace("''", "'")  
             return nom
     return None
 
@@ -63,15 +64,19 @@ def detecter_debut_objet(ligne):
     ligne_strip = ligne.strip()
     
     # Détection des mesures : "measure 'Nom mesure' = ..." ou "measure NomSansEspace = ..."
-    match_measure = re.match(r"^measure\s+(?:'([^']+)'|(\S+?))\s*=", ligne_strip)
+    match_measure = re.match(r"^measure\s+(?:'((?:[^']|'')+)'|(\S+?))\s*=", ligne_strip)
     if match_measure:
         nom = match_measure.group(1) or match_measure.group(2)
+        if nom:
+            nom = nom.replace("''", "'")  
         return ('Mesure', nom)
     
     # Détection des colonnes : "column NomColonne" ou "column 'Nom avec espaces'"
-    match_column = re.match(r"^column\s+(?:'([^']+)'|(\S+))", ligne_strip)
+    match_column = re.match(r"^column\s+(?:'((?:[^']|'')+)'|(\S+))", ligne_strip)
     if match_column:
         nom = match_column.group(1) or match_column.group(2)
+        if nom:
+            nom = nom.replace("''", "'")
         return ('Colonne', nom)
     
     return (None, None)
@@ -80,10 +85,11 @@ def detecter_debut_objet(ligne):
 def est_objet_cache(lignes_bloc):
     """
     Détermine si un objet (colonne ou mesure) est marqué comme caché.
-    Cherche la ligne 'changedProperty = IsHidden' dans le bloc de l'objet.
+    Cherche la ligne 'isHidden' dans le bloc de l'objet.
     """
     for ligne in lignes_bloc:
-        if 'changedProperty' in ligne and 'IsHidden' in ligne:
+        ligne_strip = ligne.strip()
+        if ligne_strip == 'isHidden':
             return True
     return False
 

@@ -48,6 +48,7 @@ def parser_page(dossier_section, nom_rapport):
         dict avec les informations de la page, ou None en cas d'erreur
     """
     fichier_section = dossier_section / "section.json"
+    fichier_config = dossier_section / "config.json"
     
     if not fichier_section.exists():
         print(f"  [AVERTISSEMENT] section.json introuvable dans {dossier_section.name}")
@@ -70,9 +71,19 @@ def parser_page(dossier_section, nom_rapport):
     nom_dossier_decode = decoder_nom_fichier(dossier_section.name)
     ordre = extraire_ordre_page(dossier_section.name)
     
-    # displayOption : 1 = visible, 2 = masquée, 3 = masquée mobile
-    display_option = data.get('displayOption', 1)
-    est_visible = "Oui" if display_option == 1 else "Non"
+    # Lecture de la visibilité depuis config.json si disponible
+    # visibility = 1 signifie que la page est cachée
+    # Si la propriété  est absente, la page est visible par défaut
+    est_visible = "Oui" 
+    if fichier_config.exists():
+        try:
+            with open(fichier_config, 'r', encoding='utf-8') as f:
+                config_data = json.load(f)
+            visibility = config_data.get('visibility', 0)
+            if visibility == 1:
+                est_visible = "Non"
+        except json.JSONDecodeError:
+            pass  # On ignore les erreurs de config.json et on considère la page visible par défaut
     
     return {
         'NomRapport': nom_rapport,
