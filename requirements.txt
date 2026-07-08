@@ -1,0 +1,3 @@
+# Ce projet utilise uniquement la bibliothèque standard Python.
+# Aucune installation supplémentaire n'est requise.
+# Version Python minimale recommandée : 3.11
