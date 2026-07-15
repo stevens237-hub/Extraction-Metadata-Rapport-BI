@@ -18,6 +18,8 @@ from usedTable_parser import agreger_tables_utilisees
 from model_parser import parser_modele_rapport
 from unusedField_parse import calculer_champs_non_utilises
 from unusedTable_parse import calculer_tables_non_utilisees
+from file_type_detector import (detecter_type_fichier, extraire_rdl_du_pbix_pagine, TYPE_PBIX_CLASSIQUE, TYPE_RDL, TYPE_PBIX_PAGINE, TYPE_INCONNU)
+from paginated_parser import parser_rapport_rdl
 
 
 def charger_configuration():
@@ -83,9 +85,10 @@ def verifier_fichiers_sortie_accessibles(dossier_sortie, noms_csv):
     return erreurs
 
 def lister_rapports(config):
-    """Retourne la liste des fichiers .pbix dans le dossier source."""
+    """Retourne la liste des fichiers .pbix et .rdl dans le dossier source."""
     dossier_rapports = Path(config['Chemins']['dossier_rapports'])
     rapports = list(dossier_rapports.glob("*.pbix"))
+    rapports.extend(dossier_rapports.glob("*.rdl"))
     return rapports
 
 
@@ -149,11 +152,10 @@ def main():
     print("=" * 60)
     print()
     
-    # Chargement de la configuration
+    # Chargement config et vérifications (inchangé)
     config = charger_configuration()
     print("[OK] Configuration chargée")
     
-    # Vérification de l'environnement
     erreurs = verifier_environnement(config)
     if erreurs:
         print("\n[ERREUR] Problèmes détectés :")
@@ -163,67 +165,123 @@ def main():
     print("[OK] Environnement vérifié")
     
     # Vérification des fichiers de sortie
-    noms_csv = ['ReportPages.csv', 'Visuals.csv', 'UsedFields.csv', 'UsedTables.csv', 'UnusedFields.csv', 'UnusedTables.csv']
+    noms_csv = [
+        'ReportPages.csv', 'Visuals.csv', 'UsedFields.csv',
+        'UsedTables.csv', 'UnusedFields.csv', 'UnusedTables.csv',
+        'PaginatedReports.csv', 'PaginatedDataSources.csv',
+        'PaginatedDataSets.csv', 'PaginatedFields.csv', 'PaginatedVisuals.csv'
+    ]
     erreurs_fichiers = verifier_fichiers_sortie_accessibles(
-        Path(config['Chemins']['dossier_sortie']),
-        noms_csv
+        Path(config['Chemins']['dossier_sortie']), noms_csv
     )
     if erreurs_fichiers:
         print("\n[ERREUR] Fichiers de sortie inaccessibles :")
         for erreur in erreurs_fichiers:
             print(f"  - {erreur}")
         sys.exit(1)
-    print("[OK] Fichiers de sortie accessibles")
     
-    # Listing des rapports à traiter
     rapports = lister_rapports(config)
     if not rapports:
-        print("\n[INFO] Aucun fichier .pbix trouvé dans le dossier source.")
+        print("\n[INFO] Aucun fichier .pbix ou .rdl trouvé.")
         sys.exit(0)
     
     print(f"\n[INFO] {len(rapports)} rapport(s) à traiter")
     
-    # Récupération des chemins de configuration
+    # Récupération des chemins
     dossier_temp = Path(config['Chemins']['dossier_temp'])
     dossier_sortie = Path(config['Chemins']['dossier_sortie'])
     chemin_pbi_tools = Path(config['Chemins']['chemin_pbi_tools'])
     
-    # Collecte des données
+    # Collecte des données Power BI classiques
     toutes_les_pages = []
     tous_les_visuels = []
     tous_les_champs = []
     tous_les_champs_modele = []
     
+    # Collecte des données rapports paginés
+    paginated_syntheses = []
+    paginated_sources = []
+    paginated_datasets = []
+    paginated_fields = []
+    paginated_visuels = []
+    
+    # Traitement de chaque rapport
     for i, rapport in enumerate(rapports, 1):
         print(f"\n[{i}/{len(rapports)}] Traitement : {rapport.name}")
         
-        # Extraction du .pbix avec pbi-tools
-        dossier_extrait = extraire_avec_pbi_tools(rapport, dossier_temp, chemin_pbi_tools)
-        if dossier_extrait is None:
-            print(f"  [SKIP] Rapport ignoré suite à l'erreur d'extraction")
-            continue
+        # Détection du type
+        type_fichier = detecter_type_fichier(rapport)
         
-        # Parsing des pages
-        pages = parser_pages_rapport(dossier_extrait, rapport.stem)
-        print(f"  [OK] {len(pages)} page(s) extraite(s)")
-        toutes_les_pages.extend(pages)
+        if type_fichier == TYPE_PBIX_CLASSIQUE:
+            print(f"  [TYPE] Rapport Power BI classique")
+            
+            dossier_extrait = extraire_avec_pbi_tools(rapport, dossier_temp, chemin_pbi_tools)
+            if dossier_extrait is None:
+                print(f"  [SKIP] Rapport ignoré suite à l'erreur d'extraction")
+                continue
+            
+            pages = parser_pages_rapport(dossier_extrait, rapport.stem)
+            print(f"  [OK] {len(pages)} page(s) extraite(s)")
+            toutes_les_pages.extend(pages)
+            
+            visuels = parser_visuels_rapport(dossier_extrait, rapport.stem)
+            print(f"  [OK] {len(visuels)} visuel(s) extrait(s)")
+            tous_les_visuels.extend(visuels)
+            
+            champs = parser_champs_rapport(dossier_extrait, rapport.stem)
+            print(f"  [OK] {len(champs)} usage(s) de champ extrait(s)")
+            tous_les_champs.extend(champs)
+            
+            champs_modele = parser_modele_rapport(dossier_extrait, rapport.stem)
+            print(f"  [OK] {len(champs_modele)} champ(s) trouvé(s) dans le modèle")
+            tous_les_champs_modele.extend(champs_modele)
         
-        # Parsing des visuels
-        visuels = parser_visuels_rapport(dossier_extrait, rapport.stem)
-        print(f"  [OK] {len(visuels)} visuel(s) extrait(s)")
-        tous_les_visuels.extend(visuels)
+        elif type_fichier == TYPE_RDL:
+            print(f"  [TYPE] Rapport paginé (RDL)")
+            
+            resultat = parser_rapport_rdl(rapport, rapport.stem)
+            if resultat is None:
+                print(f"  [SKIP] Rapport paginé ignoré")
+                continue
+            
+            paginated_syntheses.append(resultat['synthese'])
+            paginated_sources.extend(resultat['sources'])
+            paginated_datasets.extend(resultat['datasets'])
+            paginated_fields.extend(resultat['fields'])
+            paginated_visuels.extend(resultat['visuels'])
+            
+            print(f"  [OK] {len(resultat['datasets'])} dataset(s), "
+                  f"{len(resultat['fields'])} champ(s), "
+                  f"{len(resultat['visuels'])} visuel(s)")
         
-        # Parsing des champs utilisés
-        champs = parser_champs_rapport(dossier_extrait, rapport.stem)
-        print(f"  [OK] {len(champs)} usage(s) de champ extrait(s)")
-        tous_les_champs.extend(champs)
+        elif type_fichier == TYPE_PBIX_PAGINE:
+            print(f"  [TYPE] Rapport paginé embarqué dans un .pbix")
+            
+            # Extraire le .rdl du conteneur
+            chemin_rdl = extraire_rdl_du_pbix_pagine(rapport, dossier_temp)
+            if chemin_rdl is None:
+                print(f"  [SKIP] Impossible d'extraire le .rdl du .pbix")
+                continue
+            
+            resultat = parser_rapport_rdl(chemin_rdl, rapport.stem)
+            if resultat is None:
+                print(f"  [SKIP] Rapport paginé ignoré")
+                continue
+            
+            paginated_syntheses.append(resultat['synthese'])
+            paginated_sources.extend(resultat['sources'])
+            paginated_datasets.extend(resultat['datasets'])
+            paginated_fields.extend(resultat['fields'])
+            paginated_visuels.extend(resultat['visuels'])
+            
+            print(f"  [OK] {len(resultat['datasets'])} dataset(s), "
+                  f"{len(resultat['fields'])} champ(s), "
+                  f"{len(resultat['visuels'])} visuel(s)")
         
-        # Parsing du modèle (inventaire complet)
-        champs_modele = parser_modele_rapport(dossier_extrait, rapport.stem)
-        print(f"  [OK] {len(champs_modele)} champ(s) trouvé(s) dans le modèle")
-        tous_les_champs_modele.extend(champs_modele)
+        else:
+            print(f"  [SKIP] Type de fichier non reconnu")
     
-    # Écriture des CSV consolidés
+    # Génération des CSV Power BI classiques
     print("\n[INFO] Génération des fichiers CSV...")
     
     if toutes_les_pages:
@@ -234,51 +292,70 @@ def main():
     
     if tous_les_visuels:
         chemin_csv = dossier_sortie / "Visuals.csv"
-        colonnes = ['NomRapport', 'NomPage', 'OrdrePage', 'TypeVisuel', 'Titre', 'PositionX', 'PositionY', 'Largeur', 'Hauteur', 'AFiltre']
+        colonnes = ['NomRapport', 'NomPage', 'OrdrePage', 'TypeVisuel', 'Titre', 
+                   'PositionX', 'PositionY', 'Largeur', 'Hauteur', 'AFiltre']
         ecrire_csv(tous_les_visuels, chemin_csv, colonnes)
         print(f"  [OK] Visuals.csv : {len(tous_les_visuels)} ligne(s)")
-        
+    
     if tous_les_champs:
         chemin_csv = dossier_sortie / "UsedFields.csv"
         colonnes = ['NomRapport', 'NomPage', 'TypeVisuel', 'NomTable', 'NomChamp', 'TypeChamp', 'Agregation']
         ecrire_csv(tous_les_champs, chemin_csv, colonnes)
         print(f"  [OK] UsedFields.csv : {len(tous_les_champs)} ligne(s)")
         
-    # Agrégation des tables utilisées
-    if tous_les_champs:
         tables_utilisees = agreger_tables_utilisees(tous_les_champs)
-        
         if tables_utilisees:
             chemin_csv = dossier_sortie / "UsedTables.csv"
             colonnes = ['NomRapport', 'NomTable', 'NbChampsUtilises', 'NbVisuelsUtilisant']
             ecrire_csv(tables_utilisees, chemin_csv, colonnes)
             print(f"  [OK] UsedTables.csv : {len(tables_utilisees)} ligne(s)")
-            
-    # Calcul et écriture des champs non utilisés
+    
     if tous_les_champs_modele:
-        champs_non_utilises = calculer_champs_non_utilises(
-            tous_les_champs_modele, 
-            tous_les_champs
-        )
-        
+        champs_non_utilises = calculer_champs_non_utilises(tous_les_champs_modele, tous_les_champs)
         if champs_non_utilises:
             chemin_csv = dossier_sortie / "UnusedFields.csv"
             colonnes = ['NomRapport', 'NomTable', 'NomChamp', 'TypeChamp', 'EstMasque']
             ecrire_csv(champs_non_utilises, chemin_csv, colonnes)
             print(f"  [OK] UnusedFields.csv : {len(champs_non_utilises)} ligne(s)")
         
-        # Calcul et écriture des tables non utilisées
-        tables_non_utilisees = calculer_tables_non_utilisees(
-            tous_les_champs_modele,
-            tous_les_champs
-        )
-        
+        tables_non_utilisees = calculer_tables_non_utilisees(tous_les_champs_modele, tous_les_champs)
         if tables_non_utilisees:
             chemin_csv = dossier_sortie / "UnusedTables.csv"
             colonnes = ['NomRapport', 'NomTable', 'NbColonnes', 'NbMesures', 'EstMasqueeGlobalement']
             ecrire_csv(tables_non_utilisees, chemin_csv, colonnes)
             print(f"  [OK] UnusedTables.csv : {len(tables_non_utilisees)} ligne(s)")
-            
+    
+    # Génération des CSV rapports paginés
+    if paginated_syntheses:
+        chemin_csv = dossier_sortie / "PaginatedReports.csv"
+        colonnes = ['NomRapport', 'NbDataSources', 'NbDataSets', 'NbChampsTotal',
+                   'NbParametres', 'NbTablix', 'NbCharts', 'NbTextbox', 'NbSubreports']
+        ecrire_csv(paginated_syntheses, chemin_csv, colonnes)
+        print(f"  [OK] PaginatedReports.csv : {len(paginated_syntheses)} ligne(s)")
+    
+    if paginated_sources:
+        chemin_csv = dossier_sortie / "PaginatedDataSources.csv"
+        colonnes = ['NomRapport', 'NomSource', 'Provider', 'ConnectString', 'AuthMode']
+        ecrire_csv(paginated_sources, chemin_csv, colonnes)
+        print(f"  [OK] PaginatedDataSources.csv : {len(paginated_sources)} ligne(s)")
+    
+    if paginated_datasets:
+        chemin_csv = dossier_sortie / "PaginatedDataSets.csv"
+        colonnes = ['NomRapport', 'NomDataSet', 'NomSource', 'TypeCommande', 'NbChamps', 'ExtraitRequete']
+        ecrire_csv(paginated_datasets, chemin_csv, colonnes)
+        print(f"  [OK] PaginatedDataSets.csv : {len(paginated_datasets)} ligne(s)")
+    
+    if paginated_fields:
+        chemin_csv = dossier_sortie / "PaginatedFields.csv"
+        colonnes = ['NomRapport', 'NomDataSet', 'NomChamp', 'SourceField', 'Formule']
+        ecrire_csv(paginated_fields, chemin_csv, colonnes)
+        print(f"  [OK] PaginatedFields.csv : {len(paginated_fields)} ligne(s)")
+    
+    if paginated_visuels:
+        chemin_csv = dossier_sortie / "PaginatedVisuals.csv"
+        colonnes = ['NomRapport', 'NomVisuel', 'TypeVisuel', 'SousType', 'NomDataSet']
+        ecrire_csv(paginated_visuels, chemin_csv, colonnes)
+        print(f"  [OK] PaginatedVisuals.csv : {len(paginated_visuels)} ligne(s)")
     
     print("\nTerminé.")
 
