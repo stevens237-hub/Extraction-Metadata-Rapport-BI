@@ -7,6 +7,10 @@ paramètres et éléments visuels.
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
+from logging_config import obtenir_logger
+
+logger = obtenir_logger()
+
 
 def local_name(tag):
     """
@@ -226,10 +230,10 @@ def parser_rapport_rdl(chemin_rdl, nom_rapport):
         tree = ET.parse(chemin_rdl)
         root = tree.getroot()
     except ET.ParseError as e:
-        print(f"  [ERREUR] Fichier RDL invalide : {e}")
+        logger.error(f"  [ERREUR] Fichier RDL invalide : {e}")
         return None
     except IOError as e:
-        print(f"  [ERREUR] Impossible de lire {chemin_rdl.name} : {e}")
+        logger.error(f"  [ERREUR] Impossible de lire {chemin_rdl.name} : {e}")
         return None
     
     # Extraction de toutes les catégories

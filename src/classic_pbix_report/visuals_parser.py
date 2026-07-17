@@ -7,6 +7,9 @@ et produit une ligne de données par visuel.
 import json
 from pathlib import Path
 from classic_pbix_report.pages_parser import decoder_nom_fichier, extraire_ordre_page
+from logging_config import obtenir_logger
+
+logger = obtenir_logger()
 
 
 def extraire_titre_visuel(config_data):
@@ -82,14 +85,14 @@ def parser_visuel(dossier_visuel, nom_rapport, nom_page, ordre_page):
     fichier_config = dossier_visuel / "config.json"
     
     if not fichier_config.exists():
-        print(f"    [AVERTISSEMENT] config.json introuvable dans {dossier_visuel.name}")
+        logger.warning(f"    [AVERTISSEMENT] config.json introuvable dans {dossier_visuel.name}")
         return None
     
     try:
         with open(fichier_config, 'r', encoding='utf-8') as f:
             data = json.load(f)
     except json.JSONDecodeError as e:
-        print(f"    [ERREUR] JSON invalide dans {fichier_config} : {e}")
+        logger.error(f"    [ERREUR] JSON invalide dans {fichier_config} : {e}")
         return None
     
     # Récupération du type de visuel

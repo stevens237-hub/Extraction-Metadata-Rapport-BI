@@ -7,6 +7,10 @@ des tables, colonnes et mesures définies dans le modèle.
 import re
 from pathlib import Path
 
+from logging_config import obtenir_logger
+
+logger = obtenir_logger()
+
 
 # Préfixes de noms de fichiers qui correspondent à des tables système
 # (générées automatiquement par Power BI, à ignorer dans l'inventaire)
@@ -109,13 +113,13 @@ def parser_fichier_tmdl(chemin_fichier, nom_rapport):
         with open(chemin_fichier, 'r', encoding='utf-8-sig') as f:
             lignes = f.readlines()
     except IOError as e:
-        print(f"    [ERREUR] Impossible de lire {chemin_fichier.name} : {e}")
+        logger.error(f"    [ERREUR] Impossible de lire {chemin_fichier.name} : {e}")
         return []
     
     # Récupération du nom de la table
     nom_table = extraire_nom_table(lignes)
     if nom_table is None:
-        print(f"    [AVERTISSEMENT] Table sans nom dans {chemin_fichier.name}")
+        logger.warning(f"    [AVERTISSEMENT] Table sans nom dans {chemin_fichier.name}")
         return []
     
     # Parcours du fichier pour extraire les colonnes et mesures
@@ -176,7 +180,7 @@ def parser_modele_rapport(dossier_rapport_extrait, nom_rapport):
     dossier_tables = dossier_rapport_extrait / "Model" / "tables"
     
     if not dossier_tables.exists():
-        print(f"  [ERREUR] Dossier Model/tables introuvable pour {nom_rapport}")
+        logger.error(f"  [ERREUR] Dossier Model/tables introuvable pour {nom_rapport}")
         return []
     
     tous_les_champs = []

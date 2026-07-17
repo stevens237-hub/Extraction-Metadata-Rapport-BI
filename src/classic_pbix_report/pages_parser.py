@@ -8,6 +8,10 @@ import json
 import re
 from pathlib import Path
 
+from logging_config import obtenir_logger
+
+logger = obtenir_logger()
+
 
 def decoder_nom_fichier(nom):
     """
@@ -51,14 +55,14 @@ def parser_page(dossier_section, nom_rapport):
     fichier_config = dossier_section / "config.json"
     
     if not fichier_section.exists():
-        print(f"  [AVERTISSEMENT] section.json introuvable dans {dossier_section.name}")
+        logger.warning(f"  [AVERTISSEMENT] section.json introuvable dans {dossier_section.name}")
         return None
     
     try:
         with open(fichier_section, 'r', encoding='utf-8') as f:
             data = json.load(f)
     except json.JSONDecodeError as e:
-        print(f"  [ERREUR] JSON invalide dans {fichier_section} : {e}")
+        logger.error(f"  [ERREUR] JSON invalide dans {fichier_section} : {e}")
         return None
     
     # Comptage des visuels dans la page
@@ -110,7 +114,7 @@ def parser_pages_rapport(dossier_rapport_extrait, nom_rapport):
     dossier_sections = dossier_rapport_extrait / "Report" / "sections"
     
     if not dossier_sections.exists():
-        print(f"  [ERREUR] Dossier Report/sections introuvable pour {nom_rapport}")
+        logger.error(f"  [ERREUR] Dossier Report/sections introuvable pour {nom_rapport}")
         return []
     
     # On récupère tous les sous-dossiers (un par page)

@@ -8,6 +8,10 @@ Détection du type de fichier Power BI :
 import zipfile
 from pathlib import Path
 
+from logging_config import obtenir_logger
+
+logger = obtenir_logger()
+
 
 TYPE_PBIX_CLASSIQUE = 'pbix_classique'
 TYPE_RDL = 'rdl'
@@ -47,7 +51,7 @@ def detecter_type_fichier(chemin_fichier):
                 return TYPE_PBIX_CLASSIQUE
                 
         except zipfile.BadZipFile:
-            print(f"  [ERREUR] Fichier corrompu ou non-ZIP : {chemin.name}")
+            logger.error(f"  [ERREUR] Fichier corrompu ou non-ZIP : {chemin.name}")
             return TYPE_INCONNU
     
     return TYPE_INCONNU
