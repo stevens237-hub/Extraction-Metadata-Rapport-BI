@@ -100,8 +100,8 @@ def parser_datasets(root, nom_rapport):
         
         # Extrait un aperçu de la requête (premiers caractères)
         extrait = commande.replace('\n', ' ').replace('\r', '').strip()
-        if len(extrait) > 200:
-            extrait = extrait[:200] + '...'
+        if len(extrait) > 500:
+            extrait = extrait[:500] + '...'
         
         datasets.append({
             'NomRapport': nom_rapport,
