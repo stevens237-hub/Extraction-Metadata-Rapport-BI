@@ -11,15 +11,15 @@ from pathlib import Path
 
 # Import du parser
 sys.path.insert(0, str(Path(__file__).parent))
-from pages_parser import parser_pages_rapport
-from visuals_parser import parser_visuels_rapport
-from useField_parser import parser_champs_rapport
-from usedTable_parser import agreger_tables_utilisees
-from model_parser import parser_modele_rapport
-from unusedField_parse import calculer_champs_non_utilises
-from unusedTable_parse import calculer_tables_non_utilisees
+from classic_pbix_report.pages_parser import parser_pages_rapport
+from classic_pbix_report.visuals_parser import parser_visuels_rapport
+from classic_pbix_report.useField_parser import parser_champs_rapport
+from classic_pbix_report.usedTable_parser import agreger_tables_utilisees
+from classic_pbix_report.model_parser import parser_modele_rapport
+from classic_pbix_report.unusedField_parse import calculer_champs_non_utilises
+from classic_pbix_report.unusedTable_parse import calculer_tables_non_utilisees
 from file_type_detector import (detecter_type_fichier, extraire_rdl_du_pbix_pagine, TYPE_PBIX_CLASSIQUE, TYPE_RDL, TYPE_PBIX_PAGINE, TYPE_INCONNU)
-from paginated_parser import parser_rapport_rdl
+from paginated_report.paginated_parser import parser_rapport_rdl
 
 
 def charger_configuration():

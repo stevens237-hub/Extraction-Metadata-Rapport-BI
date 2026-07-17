@@ -6,7 +6,7 @@ et extrait la liste des mesures et colonnes utilisées par chaque visuel.
 
 import json
 from pathlib import Path
-from pages_parser import extraire_ordre_page
+from classic_pbix_report.pages_parser import extraire_ordre_page
 
 
 def construire_dictionnaire_alias(from_section):

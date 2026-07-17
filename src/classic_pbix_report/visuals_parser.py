@@ -6,7 +6,7 @@ et produit une ligne de données par visuel.
 
 import json
 from pathlib import Path
-from pages_parser import decoder_nom_fichier, extraire_ordre_page
+from classic_pbix_report.pages_parser import decoder_nom_fichier, extraire_ordre_page
 
 
 def extraire_titre_visuel(config_data):
